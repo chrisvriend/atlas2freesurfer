@@ -453,3 +453,7 @@ for atlas in BNA aparc500 BNA+cerebellum 300P7N; do
 
 
 done
+echo "--------------------------"
+echo "done with subject= ${subj}"
+echo "--------------------------"
+
