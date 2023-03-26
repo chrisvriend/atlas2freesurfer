@@ -115,7 +115,7 @@ if [[ ! -f ${SUBJECTS_DIR}/${subj}/label/lh.BN_Atlas.annot ]] ||
 		# extract values to annot file
 		mris_anatomical_stats -mgz -cortex ${SUBJECTS_DIR}/${subj}/label/${hemi}.cortex.label \
 			-f ${SUBJECTS_DIR}/${subj}/stats/${hemi}.BN_Atlas.stats -b -a ${SUBJECTS_DIR}/${subj}/label/${hemi}.BN_Atlas.annot \
-			-c ${atlasdir}/BNA/BN_Atlas_246_LUT.txt ${subj} ${hemi} white
+			-c ${atlasdir}/BNA/BNA_labels_orig_wsubcortex.txt ${subj} ${hemi} white
 
 	done
 
@@ -127,7 +127,7 @@ if [[ ! -f ${SUBJECTS_DIR}/${subj}/mri/BN_Atlas_subcortex.mgz ]]; then
 		${SUBJECTS_DIR}/${subj}/mri/BN_Atlas_subcortex.mgz
 	# extract values to annot file
 	mri_segstats --seg ${SUBJECTS_DIR}/${subj}/mri/BN_Atlas_subcortex.mgz \
-		--ctab ${atlasdir}/BNA/BN_Atlas_246_LUT.txt --excludeid 0 \
+		--ctab ${atlasdir}/BNA/BNA_labels_orig_wsubcortex.txt --excludeid 0 \
 		--sum ${SUBJECTS_DIR}/${subj}/stats/BN_Atlas_subcortex.stats
 
 fi
