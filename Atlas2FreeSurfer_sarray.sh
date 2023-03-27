@@ -224,6 +224,10 @@ for parcel in 300P7N 400P7N 300P17N 400P17N; do
 		ID="300Parcels_7Networks"
 	elif [[ ${parcel} == "300P17N" ]]; then
 		ID="300Parcels_17Networks"
+	elif [[ ${parcel} == "200P7N" ]]; then
+		ID="200Parcels_7Networks"
+	elif [[ ${parcel} == "100P7N" ]]; then
+		ID="100Parcels_7Networks"
 	elif [[ ${parcel} == "400P7N" ]]; then
 		ID="400Parcels_7Networks"
 	elif [[ ${parcel} == "400P17N" ]]; then
@@ -303,7 +307,11 @@ for atlas in BNA aparc500 BNA+cerebellum 300P7N 400P7N; do
 	if [[ ${atlas} == "300P7N" ]]; then
 		ID="Schaefer_300P7N"
 	elif [[ ${atlas} == "400P7N" ]]; then
-		ID="Schaefer_300P7N"
+		ID="Schaefer_400P7N"
+	elif [[ ${atlas} == "200P7N" ]]; then
+		ID="Schaefer_200P7N"
+	elif [[ ${atlas} == "100P7N" ]]; then
+		ID="Schaefer_100P7N"
 	elif [[ ${atlas} == "aparc500" ]]; then
 		ID="aparc500_labels"
 	elif [[ ${atlas} == "BNA" ]]; then
@@ -417,7 +425,11 @@ for atlas in BNA aparc500 BNA+cerebellum 300P7N; do
 	if [[ ${atlas} == "300P7N" ]]; then
 		ID="Schaefer_300P7N"
 	elif [[ ${atlas} == "400P7N" ]]; then
-		ID="Schaefer_300P7N"
+		ID="Schaefer_400P7N"
+	elif [[ ${atlas} == "200P7N" ]]; then
+		ID="Schaefer_200P7N"
+	elif [[ ${atlas} == "100P7N" ]]; then
+		ID="Schaefer_100P7N"
 	elif [[ ${atlas} == "aparc500" ]]; then
 		ID="aparc500_labels"
 	elif [[ ${atlas} == "BNA" ]]; then
