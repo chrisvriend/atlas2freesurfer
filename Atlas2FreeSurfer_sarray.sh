@@ -48,11 +48,10 @@ EOF
 atlasdir=/data/anw/anw-gold/NP/doorgeefluik/atlas4FreeSurfer
 
 # source software
-module load fsl/6.0.5.1
+module load fsl/6.0.6.5
 module load FreeSurfer/7.3.2-centos8_x86_64
 module load Anaconda3/2022.05
-afnitools_container=/mnt/scratch-01/anw/share-np/AFNIr
-mrtrix_env=/mnt/scratch-01/anw/share/python-env/mrtrix
+mrtrix_env=/scratch/anw/share/python-env/mrtrix
 conda activate ${mrtrix_env}
 
 #==========================
@@ -291,18 +290,28 @@ if [ ! -f ${SUBJECTS_DIR}/${subj}/mri/aparc500+aseg.mgz ]; then
 
 fi
 
-######################
-## relabel atlas  ####
-######################
 
-# check code + atlas specification!!!
+################################
+## warp atlas to BOLD space ####
+################################
 
-mkdir -p ${SUBJECTS_DIR}/${subj}/relabeled
+boldreffile=${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}task-rest_space-${outputspace}_boldref.nii.gz
 
-# DK
-for atlas in BNA aparc500 BNA+cerebellum 300P7N 400P7N; do
+for atlas in BNA aparc500 BNA+cerebellum 300P7N; do
+	echo -e "atlas = ${atlas}"	
 
-	echo -e "atlas = ${atlas}"
+	if [ ! -f ${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_dseg.nii.gz ]; then
+
+		parcfile=${SUBJECTS_DIR}/${subj}/mri/${atlas}+aseg.nii.gz
+
+		echo "transform ${atlas} parcellation to boldspace"
+		apptainer run ${afnitools_container} 3dresample \
+			-rmode NN \
+			-input ${parcfile} \
+			-master ${boldreffile} \
+			-prefix \
+			${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_temp.nii.gz
+
 
 	if [[ ${atlas} == "300P7N" ]]; then
 		ID="Schaefer_300P7N"
@@ -322,37 +331,17 @@ for atlas in BNA aparc500 BNA+cerebellum 300P7N 400P7N; do
 
 	if [[ ${ID} != *"Schaefer"* ]]; then
 		# convert and sort labels
-		labelconvert ${SUBJECTS_DIR}/${subj}/mri/${atlas}+aseg.nii.gz \
+		labelconvert ${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_temp.nii.gz \
 			${atlasdir}/${atlas}/${ID}_orig.txt \
 			${atlasdir}/${atlas}/${ID}_modified.txt \
-			${SUBJECTS_DIR}/${subj}/relabeled/${atlas}_relab.nii.gz -force
+			${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_dseg.nii.gz -force
 	else
-		labelconvert ${SUBJECTS_DIR}/${subj}/mri/${atlas}+aseg.nii.gz \
+		labelconvert ${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_temp.nii.gz \
 			${atlasdir}/Schaefer/${ID}_orig.txt \
 			${atlasdir}/Schaefer/${ID}_modified.txt \
-			${SUBJECTS_DIR}/${subj}/relabeled/${atlas}_relab.nii.gz -force
+			${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_temp.nii.gz -force 
 	fi
 	unset ID
-done
-################################
-## warp atlas to BOLD space ####
-################################
-
-boldreffile=${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}task-rest_space-${outputspace}_boldref.nii.gz
-
-for atlas in BNA aparc500 BNA+cerebellum 300P7N; do
-
-	if [ ! -f ${SUBJECTS_DIR}/${subj}/parc2func/${subj}${sessionfile}${atlas}_space-${outputspace}.nii.gz ]; then
-		mkdir -p ${SUBJECTS_DIR}/${subj}/parc2func
-		parcfile=${SUBJECTS_DIR}/${subj}/relabeled/${atlas}_relab.nii.gz
-
-		echo "transform ${parc} parcellation to boldspace"
-		apptainer run ${afnitools_container} 3dresample \
-			-rmode NN \
-			-input ${parcfile} \
-			-master ${boldreffile} \
-			-prefix \
-			${SUBJECTS_DIR}/${subj}/parc2func/${subj}${sessionfile}${atlas}_space-${outputspace}.nii.gz
 
 		# # use mrview to make overlay picture
 		# mrview -noannotation \
@@ -360,15 +349,16 @@ for atlas in BNA aparc500 BNA+cerebellum 300P7N; do
 		# -config MRViewOrthoAsRow 1 \
 		# -config MRViewDockFloating 1 \
 		# -mode 2 \
-		# -load ${fmriprepdir}/${subj}${sessionpath}func/parcfiles/${subj}${sessionfile}${atlas}_space-${outputspace}.nii.gz \
+		# -load ${fmriprepdir}/${subj}${sessionpath}func/parcfiles/${subj}${sessionfile}_atlas-${atlas}_space-${outputspace}.nii.gz \
 		# -overlay.load  \
-		# -capture.prefix ${subj}${sessionfile}${atlas}- \
+		# -capture.prefix ${subj}${sessionfile}_atlas-${atlas}- \
 		# -capture.grab -exit
 		# mv ${subj}_tissue-*.png ./QA/${subj}_tissue-overlay.png
 	fi
-
+	rm ${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_temp.nii.gz
 done
 conda deactivate
+
 
 denoisedimg=${fmriprepdir}/${subj}${sessionpath}func/denoised/${subj}${sessionfile}task-rest_space-${outputspace}_desc-smooth_${denoise_protocol}_bold.nii.gz
 
@@ -404,20 +394,20 @@ for atlas in BNA aparc500 BNA+cerebellum 300P7N; do
 	# extract timeseries #
 	echo "extract timeseries for ${atlas}"
 	fslmeants -i ${denoisedimg} \
-		--label=${SUBJECTS_DIR}/${subj}/parc2func/${subj}${sessionfile}${atlas}_space-${outputspace}.nii.gz \
-		>${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}${atlas}_timeseries.txt
+		--label=${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_dseg.nii.gz \
+		>${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}atlas-${atlas}_timeseries.txt
 
 	fslmeants -i ${base}_minmasked.nii.gz \
-		--label=${SUBJECTS_DIR}/${subj}/parc2func/${subj}${sessionfile}${atlas}_space-${outputspace}.nii.gz \
-		> ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}${atlas}_timeseries_minmasked.txt
+		--label=${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_dseg.nii.gz \
+		> ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}atlas-${atlas}_timeseries_minmasked.txt
 
 
 	# extract roi volumes #
 	echo "extract roi volumes for ${atlas}"
-	fslstats -K ${SUBJECTS_DIR}/${subj}/parc2func/${subj}${sessionfile}${atlas}_space-${outputspace}.nii.gz \
-	${denoisedimg} -V | awk '{ print $2 }' > ${fmriprepdir}/${subj}${sessionpath}roivols/${subj}${sessionfile}${atlas}_roivols.txt
-	fslstats -K ${SUBJECTS_DIR}/${subj}/parc2func/${subj}${sessionfile}${atlas}_space-${outputspace}.nii.gz \
-	${denoisedimg} -V | awk '{ print $2 }' > ${fmriprepdir}/${subj}${sessionpath}roivols/${subj}${sessionfile}${atlas}_roivols_minmasked.txt
+	fslstats -K ${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_dseg.nii.gz \
+	${denoisedimg} -V | awk '{ print $2 }' > ${fmriprepdir}/${subj}${sessionpath}roivols/${subj}${sessionfile}atlas-${atlas}_roivols.txt
+	fslstats -K ${fmriprepdir}/${subj}${sessionpath}func/${subj}${sessionfile}space-${outputspace}_atlas-${atlas}_dseg.nii.gz \
+	${denoisedimg} -V | awk '{ print $2 }' > ${fmriprepdir}/${subj}${sessionpath}roivols/${subj}${sessionfile}atlas-${atlas}_roivols_minmasked.txt
 
 	##############
 	# add headers
@@ -450,17 +440,17 @@ for atlas in BNA aparc500 BNA+cerebellum 300P7N; do
 	
 	# timeseries without minmask
     ${atlasdir}/header2timeseries.py \
-		--timeseriesfile ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}${atlas}_timeseries.txt \
+		--timeseriesfile ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}atlas-${atlas}_timeseries.txt \
 		--atlasids ${atlasids}
-	if [ -f ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}${atlas}_timeseries.csv ]; then
-	rm ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}${atlas}_timeseries.txt
+	if [ -f ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}atlas-${atlas}_timeseries.csv ]; then
+	rm ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}atlas-${atlas}_timeseries.txt
 	fi
 	# timeseries with minmask
 	${atlasdir}/header2timeseries.py \
-		--timeseriesfile ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}${atlas}_timeseries_minmasked.txt \
+		--timeseriesfile ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}atlas-${atlas}_timeseries_minmasked.txt \
 		--atlasids ${atlasids}
-	if [ -f ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}${atlas}_timeseries_minmasked.csv ]; then
-	rm ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}${atlas}_timeseries_minmasked.txt
+	if [ -f ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}atlas-${atlas}_timeseries_minmasked.csv ]; then
+	rm ${fmriprepdir}/${subj}${sessionpath}timeseries/${subj}${sessionfile}atlas-${atlas}_timeseries_minmasked.txt
 	fi
 
 
